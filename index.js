@@ -2,7 +2,7 @@
 
 var Application = require("neat-base").Application;
 var Module = require("neat-base").Module;
-var redis = require("redis");
+var {createClient} = require("redis");
 var Promise = require("bluebird");
 var crypto = require('crypto');
 var request = require('request');
@@ -20,40 +20,43 @@ module.exports = class Cache extends Module {
             "db": 0,
             "caches": {
                 "default": {
-                    "expires": 3600
-                }
-            }
-        }
+                    "expires": 3600,
+                },
+            },
+        };
     }
 
     init() {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             this.log.debug("Initializing...");
             this.connected = false;
             let self = this;
 
             if (this.config.enabled) {
                 let options = {
-                    host: this.config.host,
-                    retry_strategy: function (options) {
-                        self.log.debug("Reconnecting to session redis in 1 second");
-                        return 1000;
+                    socket: {
+                        host: this.config.host,
+                        // retry_strategy: function (options) {
+                        //     self.log.debug("Reconnecting to session redis in 1 second");
+                        //     return 1000;
+                        // },
+                        port: this.config.port,
                     },
-                    port: this.config.port,
                     password: this.config.password,
-                    db: this.config.db || 0
+                    database: this.config.db || 0,
                 };
 
                 if (!this.config.password) {
                     delete options.password;
                 }
 
-                this.redis = redis.createClient(options);
+                this.redis = createClient(options);
+                await this.redis.connect();
                 apeStatus.redis(this.redis, "cache");
 
                 this.redis.select(this.config.db);
                 this.redis.on("error", (err) => {
-                    this.log.error(err);
+                    this.log.warn(err);
                 });
 
                 this.redis.on("connect", () => {
@@ -96,7 +99,7 @@ module.exports = class Cache extends Module {
                 }
 
                 try {
-                    resolve(JSON.parse(data))
+                    resolve(JSON.parse(data));
                 } catch (e) {
                     this.log.error(e);
                     resolve();
@@ -124,7 +127,7 @@ module.exports = class Cache extends Module {
 
             if (parseInt(options) == options) {
                 options = {
-                    expires: options
+                    expires: options,
                 };
             }
 
@@ -153,7 +156,7 @@ module.exports = class Cache extends Module {
             this.log.debug("Purging Varnish cache of " + url);
             request({
                 url: url,
-                method: "PURGE"
+                method: "PURGE",
             });
         });
     }
@@ -162,7 +165,7 @@ module.exports = class Cache extends Module {
         this.log.debug("Clearing cache of " + url);
         return new Promise((resolve, reject) => {
             request({
-                url: url + "?clearCache=true"
+                url: url + "?clearCache=true",
             });
         });
     }
@@ -181,4 +184,4 @@ module.exports = class Cache extends Module {
         });
     }
 
-}
+};
