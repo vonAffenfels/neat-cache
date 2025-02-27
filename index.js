@@ -51,10 +51,7 @@ module.exports = class Cache extends Module {
                 }
 
                 this.redis = createClient(options);
-                await this.redis.connect();
-                apeStatus.redis(this.redis, "cache");
-
-                this.redis.select(this.config.db);
+                //Add error handlers before the connect. only then does the reconnect work properly
                 this.redis.on("error", (err) => {
                     this.log.warn(err);
                 });
@@ -63,6 +60,13 @@ module.exports = class Cache extends Module {
                     this.connected = true;
                     this.log.info("Redis Connected");
                 });
+                this.redis.on('reconnecting', () => this.log.info('client is reconnecting'));
+                this.redis.on('ready', () => this.log.info('client is ready'));
+
+                await this.redis.connect();
+                apeStatus.redis(this.redis, "cache");
+
+                this.redis.select(this.config.db);
             }
 
             resolve(this);
