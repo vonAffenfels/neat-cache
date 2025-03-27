@@ -88,8 +88,18 @@ module.exports = class Cache extends Module {
     }
 
     get(key) {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             if (!this.config.enabled || !this.connected) {
+                return resolve();
+            }
+
+            try {
+                const val = await this.redis.get(key);
+                if(val){
+                    return resolve(JSON.parse(val));
+                }
+            } catch (e) {
+                this.log.error(e);
                 return resolve();
             }
 
