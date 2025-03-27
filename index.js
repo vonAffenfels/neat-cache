@@ -98,27 +98,12 @@ module.exports = class Cache extends Module {
                 if(val){
                     return resolve(JSON.parse(val));
                 }
+
+                resolve();
             } catch (e) {
                 this.log.error(e);
                 return resolve();
             }
-
-            return this.redis.get(key, (err, data) => {
-                if (err) {
-                    return reject(err);
-                }
-
-                if (!data) {
-                    return resolve();
-                }
-
-                try {
-                    resolve(JSON.parse(data));
-                } catch (e) {
-                    this.log.error(e);
-                    resolve();
-                }
-            });
         });
     }
 
